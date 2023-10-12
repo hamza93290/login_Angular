@@ -1,8 +1,11 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { FormBuilder, Validators } from '@angular/forms';
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { Login } from '../models/login';
 import { LoginService } from '../services/login.service';
+import { catchError, throwError } from 'rxjs';
+import jwt_decode from 'jwt-decode';
 
 @Component({
   selector: 'app-login',
@@ -11,17 +14,47 @@ import { LoginService } from '../services/login.service';
 })
 export class LoginComponent {
 
-  indentifiant!: Login
-  email = ''
-  password = ''
+  
+  loginForm = this.formBuilder.group({
+    username: ['', Validators.required],
+    password: ['', Validators.required]
+  })
 
-  constructor( private router : Router , private loginServ : LoginService  ){}
+  constructor(
+    private formBuilder: FormBuilder,
+    private loginService: LoginService,
+    private router: Router,
+    ) {}
 
-  onLog(){
+  onSubmit() {
+    if (this.loginForm.valid) {
+      this.loginService.loginRegister(this.loginForm.value)
+      .pipe(
+          catchError((error: HttpErrorResponse) => {
+            console.log(error.message);
+            return throwError(() => error);
+          })
+        )
+        .subscribe((response: any) => {
+          console.log(response);
+          this.getDecodedAccessToken(response)
+          if (!response.error) {
+            this.router.navigate(['/acceuil']);
+          }
+        });
+    }
+  }
 
-    
-    console.log(this.email + "  " + this.password);
-    this.loginServ.postLogin(this.email,this.password).subscribe()
+  getDecodedAccessToken(token: string): any {
+    try {
+      const tokenInfo: any = jwt_decode(token)
+      const expireDate: any = tokenInfo.exp; // get token expiration dateTime
+      console.log("tokenInfo = %o and expireDate = %o", tokenInfo, expireDate)
+      return jwt_decode(token);
+    } catch(Error) {
+      return null;
+    }
   }
 
 }
+
